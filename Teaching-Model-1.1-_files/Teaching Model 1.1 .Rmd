@@ -108,7 +108,7 @@ legend("topright","Total", col=c(1,5),lty=c(1,1))
 ```
 
 
-As ascribed, we see the difference of variance of students, but not the variables themselves.
+As ascribed, we see the difference of variance of students, but not the variables themselves. The entire variance is approximate at 28.
 
 ```{r}
 total1 <- as.matrix(total)
@@ -151,10 +151,9 @@ bs <- filter(colgadm, Major =='1')
 lw<- filter(colgadm, Major =='2')
 md <- filter(colgadm, Major =='3')
 cp <- filter(colgadm, Major =='4')
-#four <- filter(evaldata, major =='4')
+
 cmb<-bind_rows(list( "1"=bs, "2"=cp, "3"=lw, '4'=md) , .id="Major")
 
-#sex_ev<- filter(comb, sex==1)
 
 ```
 
@@ -174,8 +173,7 @@ ggplot(cmb, aes(as.numeric(Project, Mid.Test), color=Major))+
 
 The above plot indicates the Mid test score impact on these majors. From the plot, mid test has relative more numers below average, but major 
 
-
-
+From this plot, it shows major 3 student mid test is related to participation, but not apparently show such a relationship from other majors. The similar result is found on project and mid test.
 
 ```{r}
 ggplot(cmb, aes(as.numeric(Project, Final.Score), color=Major))+
@@ -185,7 +183,7 @@ ggsave('project_final.pdf')
 ```
 
 
-This right above plot indicates the project reaction to final score. From the plot, we see cp major, numered 4, has the trend going arise, and md(3) take on two statuses, starting from going down when with a lower project score, and go arise, where the md arrives at a higher density with higher project score. It seems bs(1) major has lower score on project, and its corresponding final density is lower as well. 
+This right above plot indicates the project reaction to final score. From the plot, we see major4, has the trend going arise, and major3 take on two statuses, starting from going down when with a lower project score, and go arise, where the major3 arrives at a higher density with higher project score. It seems major1 has lower score on project, and its corresponding final density is lower as well. 
 
 ```{r}
 ggplot(cmb, aes(as.numeric(Participation, Final.Score), color=Major))+
@@ -195,33 +193,37 @@ ggsave('parti_final.pdf')
 ```
 
 
-As for participation component, both md,cp, bs take on the go-arise trend over time, but the lw doesn't find the positive participation relationship with final score. There is one possibility, which is lw students don't take serious manner about their participation. There are two bumps for cp, which indicates two polars who take the serious atttitude and obtain higher score, and who don't take but still achiev a relative higher score. 
+As for participation component, major1, 3, 4 take on the go-arise trend over time, but the major2 doesn't find the positive participation relationship with final score. There is one possibility, which is major2 students don't take serious manner about their participation. There are two bumps for major1, which indicates students who take the serious attitude could obtain higher score, and major 4 who can achieve higher might not relate to their participation. 
 
+
+Those density plots about mid test and final score when student participation, major, project accomplishment take into account. From those plots, a problem is found apparently, which we don't see major 2 appears for evaluation. That is the limitation of the data. Also, in this data, we haven't consider student age, and only illustrate their academic interest, their activities for the discussion due to time issue. 
+
+
+Part II
 ```{r}
 library(dplyr)
 part = colgadm[0:14,7:14]
 tcolgadm <- part[-1] %>% t() %>% as.data.frame() %>% setNames(part[,1])
 ggplot(stack(part), aes(x = ind, y = values)) +
-  labs(x="Samples", y="Frequency") +
+  labs(x="Samples", y="Values") +
   geom_boxplot() 
-
-
 
 ```
 
+This boxplot shows each student academic performance by considering the 14 column variables. 
 
 ```{r}
-ggplot(cmb)+
-  geom_boxplot(
-    mapping=aes( 
-      x = ind,
-      y = values
-    )
-  )+
-  coord_flip()+
-  xlab("")+
-  ylab("Final Test Evaluation, by Major")+
-  theme_minimal()
+#ggplot(cmb)+
+#  geom_boxplot(
+#    mapping=aes( 
+#      x = ind,
+#      y = values
+#    )
+#  )+
+#  coord_flip()+
+#  xlab("")+
+#  ylab("Final Test Evaluation, by Major")+
+#  theme_minimal()
 
 
 ```
@@ -230,13 +232,15 @@ ggplot(cmb)+
 
 ```{r}
 library(dplyr)
-b<- cmb[-1] %>% t() %>% as.data.frame() %>% setNames(cmb[,1])
-ggplot(data=stack(b), mapping=aes(x=cmb$Project, y=cmb$Mid.Test))+geom_boxplot()
+#b<- cmb[-1] %>% t() %>% as.data.frame() %>% setNames(cmb[,1])
+#ggplot(data=stack(b), mapping=aes(x=cmb$Project, #y=cmb$Mid.Test))+geom_boxplot()
 
 ```
 
+After compared values across columns, let's do modeling test by looking at their p values from quiz through final scores, to check if they are significant when categorical variables. Due to space and time limitation, we just illustrate gender, project, mid and final score in this project. 
+
 ```{r}
-# after compared each value across columns, p value from q3 and q6 are significant. It indicates the null hypo about sex at this two are rejected.
+
 gd <- colgadm$Gender
 pj <- colgadm$Project
 which(colnames(colgadm) == "Mid.Test")   
@@ -269,52 +273,10 @@ A <- model.matrix(~b+c-1)
 cat("ncol=",ncol(A),"rank=", qr(A)$rank,"\n")
 
 ```
-Eventually, we have removed the confound variables (5.6) for those categorical columns. The following is to create a model that is used to find the predict of y. This is the first model we have so far. Now we need to calculate the coeff.  and its AIC  ### 5.7
-
-
-```{r}
-alpha <- 0.05
-m = 10000
-N = 10
-dta <- 3
-nullHypothesis <- c( rep(TRUE,900), rep(FALSE,100))
-set.seed(1)
-calls <- sapply(1:m, function(i){
-  control <- sample(cladm,N)
-  treatment <- sample(cladm,N)
-  if(!nullHypothesis[i]) treatment <- treatment + dta
-  ifelse( t.test(treatment,control)$p.value < alpha, 
-          "Called Significant",
-          "Not Called Significant")
-})
-
-
-```
-
-```{r}
-null_hypothesis <- factor( nullHypothesis, levels=c("TRUE","FALSE"))
+Eventually, we have removed the confound variables (5.6) for those categorical columns. The following is to create a model that is used to find the predict of y. This is the first model we have so far for this dataset.
 
 
 
-```
-
-
-
-```{r}
-b <- 10 
-VandS <- replicate(B,{
-  calls <- sapply(1:m, function(i){
-    control <- sample(cladm,N)
-    treatment <- sample(cladm,N)
-    if(!nullHypothesis[i]) treatment <- treatment + delta
-    t.test(treatment,control)$p.val < alpha
-  })
-  cat("V =",sum(nullHypothesis & calls), "S =",sum(!nullHypothesis & calls),"\n")
-  c(sum(nullHypothesis & calls),sum(!nullHypothesis & calls))
-  })
-
-
-```
 After checking the collinearity, we are able to construct a model as above, called Y
 
 
@@ -376,7 +338,7 @@ mppvals <- replicate(B,{
 hist(mppvals)
 
 ```
-Inference 1: All above histogram plots indicate the variable such as gender and project provide the uniform like shape about student academic performance in mid and final, where, in this test, we use t test, after a verification to its distribution.  
+Inference 1: All above histogram plots indicate the variable such as gender and project provide shape that is not uniform in term of student academic performance in mid and final, where, in this test, we use t test.
 
 
 
@@ -395,7 +357,7 @@ qqline(cladm[gd==1])
 ```
 
 
-After verifying distribution in term of gender, we corrected an incorrect assumption about gender.
+
 ```{r}
 cladmttest <- function(x) t.test(x[gd==1],x[gd==0],var.equal=TRUE)$p.value
 cladmpvals1 <- apply(cladm,1,cladmttest)
@@ -416,12 +378,12 @@ cladmpvals4 <- apply(cladm,2,cladmttestPJ)
 cladmpvals3
 cladmpvals4
 sum(cladmpvals3<0.05)
-
+sum(cladmpvals4<0.05)
 ```
 
-The above p value for students and for column variables don't show the significance level regarding the gender, however, when considering project, we find it has an impact on some column variables such as the test during the mid test (Multiple Test Section)
+The above p value for students and for column variables don't show the significance level regarding the gender in this data, however, when controlling for project, we find it has an impact on varibles such as the test during the mid test and final score(Multiple Test)
 
-
+We can do basic explotary experiment(EDA) for finding issues from the data
 ```{r}
 set.seed(1)
 library(genefilter)
@@ -433,27 +395,27 @@ cladmnulpval2 <- apply(randomcladm,2,cladmttest)
 cladmnulpval1 <- apply(randomcladm,1,cladmttest)
 cladmnulpval2
 cladmnulpval1
-which(cladmnulpval1 < 0.1)   
-which(cladmnulpval2 < 0.1)
+which(cladmnulpval1 < 0.05)   
+which(cladmnulpval2 < 0.05)
 
-```
-
-
-```{r}
-#nullpvals <- colttests(randomData,h)$p.value
-plot(cladmnulpval1,-log10(cladmnulpval1),
-     xlab="Effect size",ylab="- log (base 10) p-values")
 ```
 
 
 ```{r}
 #nullpvals <- colttests(randomData,h)$p.value
 plot(cladmnulpval2,-log10(cladmnulpval2),
-     xlab="Effect size",ylab="- log (base 10) p-values")
+     xlab="Effect size",ylab="- log (clamdmulpval2) p-values")
+```
+
+
+```{r}
+#nullpvals <- colttests(randomData,h)$p.value
+plot(cladmpvals2,-log10(cladmpvals2),
+     xlab="Effect size",ylab="- log (cladmpvals2) p-values")
 ```  
 
 
-The plots above indicate the effect size of either samples or column variables. From the plots, we see there are at least 3 variables in columns have bigger effect size. From gender perspective, mid test and final test are found to be impacted. (multiple test section)
+The plots above indicate the effect size of either samples or column variables. In this project, we just look at column vectors. From the plots, we see there seem at least 3 variables in columns have bigger effect size. From gender perspective, mid test and final test are found to be impacted. (multiple test)
 
 
 
@@ -465,16 +427,20 @@ cladmnulpval6 <- apply(randomcladm,2,cladmttestPJ)
 
 cladmnulpval5
 cladmnulpval6
-which(cladmnulpval5 < 0.1)   
-which(cladmnulpval6 < 0.1)
+which(cladmnulpval5 < 0.05)   
+which(cladmnulpval6 < 0.05)
 
 ```
 
 ```{r}
-plot(cladmpvals4,-log10(cladmpvals4),               # for particular sample
-     xlab="Effect size",ylab="- log (base 10) p-values")
-plot(cladmnulpval6,-log10(cladmnulpval6),
-     xlab="Effect size",ylab="- log (base 10) p-values")  # for randomness
+
+plot(cladmpvals4,-log10(cladmpvals4),
+     xlab="Effect size",ylab="- log (cladmpvals4) p-values")  # for randomness
+```
+
+```{r}
+plot(cladmnulpval6,-log10(cladmnulpval6),               # for particular sample
+     xlab="Effect size",ylab="- log (cladmnulpval6) p-values")
 
 ```
 
@@ -483,16 +449,22 @@ The above tests are the indication of model analysis regarding the project, wher
 
 
 ```{r}
-#nullpvals <- colttests(randomData,h)$p.value
-plot(cladmnulpval5,-log10(cladmnulpval5),
-     xlab="Effect size",ylab="- log (base 10) p-values")
-``` 
+library(rafalib)
+mypar(1,2)
+hist(cladmnulpval2,ylim=c(0,3))
+hist(cladmpvals2,ylim=c(0,3))
+```
+
 
 
 ```{r}
+library(rafalib)
+mypar(1,2)
+hist(cladmnulpval6,ylim=c(0,3))
+hist(cladmpvals4,ylim=c(0,3))
+```
 
-#nullpvals <- colttests(randomData,h)$p.value
-plot(cladmnulpval6,-log10(cladmnulpval6),
-     xlab="Effect size",ylab="- log (base 10) p-values")
-``` 
+
+
+The histograms about null pvales and pvals when controlling for project. We found the dataset may have missing information or not enough information. In next section, we will provide detailed analysis to further discuss feature selection and model construction. 
 
