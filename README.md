@@ -1,7 +1,7 @@
 # Tool: R-, Python-, Excel
-* In this project, thare are about 6 sections to show evaluation of a teaching model and its prediction. Using technology to give analysis in a statistical way. Particularily, we will introduce machine learning algrithm through the specific case study to provide possible, feasible and reliable as well as other statistical methodology.
-* The dataset is from a student cohort who are in a college level, and a study general math course. 
-* In the beginning, or the first section, I gave a visuable description for the data in order to provide an overview to the data. From analysis to the data, we only provode an initial impression and assumptions until we offered a full dataset that fit for analysis through machine leanring techniques. 
-* In the next few sections, we will first conduct dimentional reduction, then proceed to feature selection for filting out those unimportant features. 
-* Since we are confortable to either using existed models, or construct our own models, offered the occurancy to model prediction
-* We further conduct cross validation to predict using a model we selected.
+* In this project, thare are about six sections to show evaluation of a teaching model as well as a prediction to a future data. We use statistical methodology and machine learning algrithm through a specific case study. My goal is to provide a possible, feasible and reliable method to solve some educational questions that challenge us in a long run.
+* The dataset is from a student cohort who are at a college level, and a study general math course. 
+* At the beginning, or the first section, I gave a visuable description to the data in order to provide an overview of the data and the project question I tried to solve. From analysis to the data, we only provode an initial impression and assumptions until we are offered a full dataset that could fit the request for further analysis through machine leanring techniques. 
+* In the next few sections, I first conducted dimentional reduction analysis, then proceeded to feature selection for filting out those unimportant features. 
+* Since I was promosted to either use existed models, or constructed my own models, and offered an occurancy to model predictions.
+* I further conducted cross validation to predict by using a model I selected.
