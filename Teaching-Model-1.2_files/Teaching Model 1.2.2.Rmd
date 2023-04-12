@@ -1,0 +1,222 @@
+---
+title: "Teaching Model 1.2.2"
+author: "Module2"
+date: '2023-04-09'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+2.2.2 Modeling Testing
+
+```{r}
+alpha <- 0.05
+m = 10000
+N = 10
+dta <- 3
+nullHypothesis <- c( rep(TRUE,9000), rep(FALSE,1000))
+set.seed(1)
+calls <- sapply(1:m, function(i){
+  control <- sample(cladm,N)
+  treatment <- sample(cladm,N)
+  if(is.na(!nullHypothesis[i])) treatment <- treatment + dta
+  ifelse( t.test(treatment,control)$p.value < alpha, 
+          "Called Significant",
+          "Not Called Significant")
+})
+
+
+```
+
+
+
+```{r}
+null_hypothesis <- factor( nullHypothesis, levels=c("TRUE","FALSE"))
+table(null_hypothesis,calls)
+```
+
+
+
+```{r}
+b <- 10 
+VandS <- replicate(b,{
+  calls <- sapply(1:m, function(i){
+    control <- sample(cladm,N)
+    treatment <- sample(cladm,N)
+    if(is.na(!nullHypothesis[i])) treatment <- treatment + dta
+    t.test(treatment,control)$p.val < alpha
+  })
+  cat("V =",sum(nullHypothesis & calls), "S =",sum(!nullHypothesis & calls),"\n")
+  c(sum(nullHypothesis & calls),sum(!nullHypothesis & calls))
+  });
+
+```
+
+
+
+
+```{r}
+set.seed(1)
+pvals <- sapply(1:m, function(i){
+  control <- sample(cladm,N)
+  treatment <- sample(cladm,N)
+  if(is.na(!nullHypothesis[i])) treatment <- treatment + dta
+  t.test(treatment,control)$p.value
+})
+sum(pvals < 0.05/1000)
+```
+The above is modeling test after running thousands of experiments, 
+
+
+
+The permutation provides us an insight about the final where t test indicates not necessary uniform distribution for samples we permute by rows, indicating a correlation, which we seek other ways to construct the model. 
+
+
+
+From fast-way using package genefilter, we don't see uniform distribution no matter which direction, which implies again there are correlation within the dataset
+
+
+
+```{r}
+f <- apply(as.matrix(colgtotal[, 12]), 2, as.numeric)
+
+library(rafalib)
+mypar(1,2)
+
+qqnorm(f[gd==1], main="Normal Q-Q Plot for Female")
+qqline(f[gd==1])
+
+qqnorm(f[gd==0], main = "Normal Q-Q Plot for Male")
+qqline(f[gd==0])
+
+```
+The above plot shows this sample the strong normal distribution with final score. Before giving a further finding, first We use t test to test the photosynthesis to gd.
+
+```{r}
+t.test(f[gd==1],f[gd==0])$p.value
+
+```
+
+However, we don't find its significance related the gd when applying to f1, but do significant when applying to f while the outcome doesn't agree to project, that is, we repeated to use the t for other features
+We find anything that is significant when controlling for gender in an updated dataset, which implies improving performance doesn't need to check gd as it is uncertain.
+We are now working on another variable pj in the project.
+
+```{r}
+cladm <- colgtotal[,8:12]
+f <- apply(as.matrix(cladm[, 5]), 2, as.numeric)
+library(rafalib)
+mypar(1,2)
+
+qqnorm(f[pj==1],main="Normal Q-Q Plot for pj=1")
+qqline(f[pj==1])
+
+qqnorm(f[pj==0], main="Normal Q-Q Plot for pj=0")
+qqline(f[pj==0])
+
+
+```
+
+
+
+
+```{r}
+colgadm1 = read.csv("C:/Users/Jing Xie/Documents/R/Teaching Project/Proj 1/Data/StudentsAcademicPerformance.csv") 
+
+t.test(f[pj==1],f[pj==0])$p.value
+
+t.test(f[gd==1], f[gd==0])$p.value
+
+colgadm1 <- colgadm1[1:14, ]
+f1 <- apply(as.matrix(colgadm1[, 14]), 2, as.numeric)
+
+
+t.test(f1[pj==1],f1[pj==0])$p.value
+
+t.test(f1[gd==1], f1[gd==0])$p.value
+
+
+```
+This is the analysis to two dataset f, and f1, the first comes from colgtotal, the second one from colgadm1. We have found the different outcome in term of gd, which once again reveal categorical variable such as gd isn't considered as a crucial factor.
+
+```{r}
+
+cladmttest <- function(x) t.test(x[pj==1],x[pj==0],var.equal=TRUE)$p.value
+cladm <- apply(as.matrix(cladm), 2, as.numeric)
+cladmpvals <- apply(cladm,2,cladmttest)
+cladmpvals
+sum(cladmpvals<0.05)
+
+```
+
+Once again, the above  is to check the significance using modeling test method
+
+WHen pvalue method applies to updated dataset, there are four significance, they are final, hw, quiz and mid test..  
+
+Alternative method for using modeling test to find significance on two-way.
+
+```{r}
+set.seed(1)
+p <- sample(pj)
+myttest <- function(x) t.test(x[p==1],x[p==0],var.equal=TRUE)$p.value
+pumpvals1 <- apply(cladm,1,myttest)
+pumpvals2 <- apply(cladm,2,myttest)
+
+mypar(1,2)
+hist(pumpvals1)
+hist(pumpvals2)
+```
+
+
+2.3 Modeling
+2.3.1 Model for Continuous Variable
+There are many methods for constructing a model. Naive method(we discussed before), hierarchical model for variance continuous variable distribution, Machine learning algrithm, etc. We will 
+Now we have an episode for the project, it is about a poisson distribution we found from above, which promotes us to generate an additional column fm below as we previously discussed in section 2.1.
+```{r}
+# study final exam and major relationship
+colgtotal<- data.frame(colgtotal)
+colgtotal$fm <- as.numeric(colgtotal$Final.Score/colgtotal$Major)
+
+hist(colgtotal$fm)
+
+```
+
+
+All of the above proves there are dependent columns. The final ratio related major as a matter shows its poisson distribution. 
+
+
+
+```{r}
+# About setting up a model 
+l<-function(lambda) sum(dpois(colgtotal$fm,lambda,log=FALSE)) 
+
+colg_lambdas<-seq(0.5,80,len=100)
+ls <- sapply(colg_lambdas,l)
+```
+
+
+
+```{r}
+plot(colg_lambdas,ls,type="l")
+
+maxlike=optimize(l,c(0,80),maximum=TRUE)
+abline(v=maxlike$maximum)
+```
+
+From the above plot, we have an overview about how major has an effect to student performance. As shown, students who are major far to the course, will receive the points most likely around 30-35 (maximum in ratio) as mentioned before, and it is probably related to points student earned per hr(Modeling). 
+
+The maximum is at about 30 a student can earn.
+
+```{r}
+print( c(maxlike$maximum, mean(colgtotal$fm) ) )
+x <- colgtotal$fm
+x[is.infinite(x)] <- 0
+theoretical<-qpois((seq(0,50)+0.5)/100,mean(x))
+
+
+qqplot(theoretical,x)
+abline(0,1)
+
+```

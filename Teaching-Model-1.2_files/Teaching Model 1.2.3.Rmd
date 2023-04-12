@@ -1,0 +1,262 @@
+---
+title: "Teaching Model1.2.3"
+author: "Module2"
+date: '2023-04-10'
+output: html_document
+
+
+Now, We skip the hierarchical and baysian's model for variance variable, which will be discussed in later sections.
+
+Insread, we use PCA model for the entire dataset, and first starting from helping reduce the dimension before modeling 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+2.3.2 PCA Method 
+We first consider PCA where only feature variables that are continuous take into account. 
+
+```{r}
+library(tidyverse)
+is.na(colgtotal) <-sapply(colgtotal, is.infinite)
+newcolgadm <- na.omit(colgtotal)
+matcolgadm<- apply(as.matrix(newcolgadm[, 3:12]), 2, as.numeric)
+```
+
+
+
+```{r}
+matcolgadm<- apply(as.matrix(colgtotal[,8:12]), 2, as.numeric)
+set.seed(1)
+idx <- sample(nrow(colgtotal),100) 
+matcolgadm <- t(apply(matcolgadm[idx,],1,scale)) #standardize data for illustration
+clg_svd <- svd(matcolgadm)
+U <- clg_svd$u
+V <- clg_svd$v
+D <- diag(clg_svd$d)
+clg_hat <- U%*% D %*%t(V)
+
+```
+
+
+```{r}
+res <- matcolgadm - clg_hat
+plot(as.matrix(res))
+plot(clg_svd$d)
+plot(cumsum(clg_svd$d^2)/sum(clg_svd$d^2)*100,ylab="Percent variability explained",ylim=c(90,100),type="l")
+boxplot(as.matrix(res),range=0)
+# to find correlation
+1- var(as.vector(res))/var(as.vector(matcolgadm))
+clg_svd$d[1]^2/sum(clg_svd$d^2)
+
+```
+From the above outcome, we clearly say there are at least four principle components that will be used to explain up to 93% of the dataset.
+
+
+```{r}
+
+plot(clg_svd$u[, 1], clg_svd$u[, 2], col = mj, main = "SVD", xlab = "U1", ylab = "U2")
+
+plot(clg_svd$u[, 1], clg_svd$u[, 2], col = pj, main = "SVD", xlab = "U1", ylab = "U2")
+```
+ 
+ 
+
+2.3.2 More about PCA
+We select machine learning pCA model for the dataset using R
+
+```{r}
+standardize <- function(X)
+{
+  stan <- (X - mean(X))/sd(X)
+  return(stan)
+}
+colg_sadm <- standardize(matcolgadm)
+
+s<- svd(colg_sadm)
+PC1 = s$d[1]*s$v[,1]
+PC2 = s$d[2]*s$v[,2]
+plot(PC1,PC2,xlim=c(-20,10),ylim=c(-5,10))
+
+```
+
+Alternative Method for PCA 
+Starting from exploring variables that are independent
+```{r}
+pc_mat <- prcomp(t(matcolgadm))
+pc_mat$sdev
+```
+The above again provides a strong evidence to indicate the first four components that take the majority of percentage compared to the remaining. 
+
+
+2.4.1 Finding reduced dimensionality using python 
+
+
+```{r}
+library(rafalib)
+library(MASS)
+
+#standardize the matrix 
+
+standardize <- function(X)
+{
+  stan <- (X - mean(X))/sd(X)
+  return(stan)
+}
+colg_sadm <- standardize(matcolgadm)
+
+s<- svd(colg_sadm)
+PC1 = s$d[1]*s$v[,1]
+PC2 = s$d[2]*s$v[,2]
+plot(PC1,PC2,xlim=c(-20,10),ylim=c(-5,10))
+
+```
+
+```{r}
+U <- s$u
+V <- s$v
+D <- diag(s$d) 
+
+colg_hat <- U %*% D %*% t(V)
+resid <- colg_sadm - colg_hat
+plot(s$d)
+
+```
+Starting from here, we have a clear mind on dimensionality for this dataframe
+
+```{r}
+plot(s$d^2/sum(s$d^2)*100,ylab="Percent variability explained")
+v <- cumsum(s$d^2)/sum(s$d^2)*100
+plot(v,ylab="Percent variability explained",ylim=c(80,100),type="l")
+
+```
+
+
+
+
+```{r}
+is.na(colgtotal) <-sapply(colgtotal, is.infinite)
+#newcolgadm <- na.omit(colgtotal)
+matcolgadm<- apply(as.matrix(colgtotal[, 3:12]), 2, as.numeric)
+set.seed(1)
+idx <- sample(nrow(colgtotal),100) 
+matcolgadm <- t(apply(matcolgadm[idx,],1,scale)) #standardize data for illustration
+d <- dist( t(matcolgadm) )
+library(rafalib)
+mypar()
+ft <- c('Gender', 'Race', 'Goal', 'Major', 'Project', 'quiz1', 'Mid.Test', 'HW', 'Participation', 'Final.Score')
+hc <- hclust(d)
+hc
+plot(hc, labels = ft)
+```
+
+myplclust(hc, labels=ft, lab.col=as.fumeric(ft), cex=0.5)
+
+
+
+```{r}
+set.seed(1)
+km <- kmeans(t(colg_sadm), centers=4)
+mds <- cmdscale(d)
+
+mypar(1,2)
+plot(mds[,1], mds[,2]) 
+plot(mds[,1], mds[,2], col=km$cluster, pch=16)
+
+
+```
+
+
+
+```{r}
+library(RColorBrewer) 
+hmcol <- colorRampPalette(brewer.pal(9, "GnBu"))(100)
+library(genefilter)
+
+```
+
+
+
+```{r}
+# colg_rv <- rowVars(t(colg_sadm))
+# colg_idx <- order(-colg_rv)[1:5]
+# library(gplots) ##Available from CRAN
+# cols <- palette(brewer.pal(7, "Dark2"))[as.fumeric(ft)]
+
+```
+
+
+```{r}
+# par(mar = c(1, 1, 1, 1))
+# heatmap.2(colg_sadm[colg_idx,], labCol=ft,
+#           trace="none", 
+#           ColSideColors=cols, 
+#           col=hmcol)
+# dev.off()
+
+```
+
+The plots above have shown which features are important. They are classified into two classes, and each of the classes. The middle test and final score as well as the quiz take an important role (significant). Final score and mid test don't find its significant correlation with race, gender, etc. This model has limitation compared to VIF method as it doesn't reveal the collinearity. 
+
+```{r}
+library(caret)
+colg_cor <- data.frame(cor(colg_sadm))
+
+findCorrelation(cor(colg_cor), cutoff=0.75)
+
+```
+However, the numbers don't provide which variables are highly correlated.
+
+So far, we gave an analysis to data without considering categorical variable. However, we haven't deal with the entire dataset yet. 
+
+Now, we consider final score model. We found the order of the indicated variables in variance below.
+
+```{r}
+colgtotal<- read.csv("C:/Users/Jing Xie/Documents/R/Teaching Project/Proj 1/Data/colgtotal.csv")
+colg_imp <- filterVarImp(x = colgtotal[,7:11], y = colgtotal$Final.Score)
+
+#sort the score in decreasing order
+colg_imp <- data.frame(cbind(variable = rownames(colg_imp), score = colg_imp[,1]))
+colg_imp$score <- as.double(colg_imp$score)
+colg_imp[order(colg_imp$score,decreasing = TRUE),]
+
+```
+
+If we consider project model, then we obtained a completely different outcome compared to final score model. 
+
+
+
+```{r}
+install.packages("randomForest")
+library(randomForest)
+```
+
+
+```{r}
+library(dplyr)
+colgadm2 <- colgtotal[,-12]
+
+rf = randomForest(colgadm2[,3:11],as.numeric(colgtotal$Final.Score))
+colg_imp2 <- varImp(rf, scale = TRUE)
+
+colg_imp_df <- data.frame(cbind(variable = rownames(colg_imp2), score = colg_imp2[,1]))
+colg_imp_df$score <- as.double(colg_imp_df$score)
+colg_imp_df[order(colg_imp_df$score,decreasing = TRUE),]
+
+```
+
+```{r}
+ggplot(colg_imp_df, aes(x=reorder(variable, score), y=score)) + 
+  geom_point() +
+  geom_segment(aes(x=variable,xend=variable,y=0,yend=score)) +
+  ylab("Impact Level") +
+  xlab("Variable Name") +
+  coord_flip()
+
+
+```
+
+The above two cases from random forest model provide us different perspectives when considering either the categorical or not. From the plot, we find major is also important for participating in the discussion.
+
