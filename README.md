@@ -5,3 +5,4 @@
 * In the next few sections, I first conducted dimensional reduction analysis, then proceeded to feature selection for filtering out those unimportant features. 
 * I was promoted to either use existing models, or construct my own models, and offered an accuracy to model predictions.
 * I further conducted cross validation to predict by using a model I selected after model evaluation.
+* Finally, I will give a selection to models I have constructed
