@@ -1,0 +1,168 @@
+---
+title: "Teaching Model 1.4"
+author: "Module2"
+date: '2023-02-18'
+output: html_document
+---
+
+Cross Validation 
+4.1 Cross Validation 
+As known, we have used linear regression models, randomforest model, knn model for predicting our model using testing data. We will further predict after inputting new samples. We choose the best model such as fit model and the worst model such as knn to discuss how it works in the practical. 
+
+
+First, we validate fit model. 
+```{r}
+library(class)
+pdt <- predict(fit, data = newdata)
+mean(y!=pdt)
+
+```
+The error is 1
+
+```{r}
+library(tidyverse)
+predictions <- fit %>% predict(test)
+RMSE(predictions, test$Project)/mean(test$Project)
+```
+This cross validation gives the prediction error rate is high. Now we do cross validation for KNN.
+
+
+```{r}
+set.seed(1)
+idx <- createFolds(y, k=7)
+sapply(idx, length)
+head( x[idx[[1]], 1:3] ) 
+```
+
+```{r}
+sapply(idx, function(i) table(y[i]))
+
+```
+
+
+
+```{r}
+library(rafalib)
+mypar()
+xsd <- cmdscale(dist(x), k=2)
+testxsd<-cmdscale((dist(xtest)))
+plot(xsd,col=as.fumeric(as.character(y)))
+legend("topleft",levels(factor(y)),fill=seq_along(levels(factor(y))))
+
+```
+
+
+
+
+```{r}
+library(class)
+pdct <- knn(train = x, test= xtest, cl = y, k = 5)
+mean(ytest!=pdct)
+
+```
+
+
+
+```{r}
+library(caret)
+set.seed(1)
+idx <- createFolds(y, k=7)
+sapply(idx, length)
+head( x[idx[[1]], 1:3] ) 
+```
+
+```{r}
+sapply(idx, function(i) table(y[i]))
+
+```
+
+
+
+```{r}
+library(rafalib)
+mypar()
+xsd <- cmdscale(dist(x))
+testxsd<-cmdscale((dist(xtest)))
+#testsmall <- cmdscale((dist(test)))
+plot(xsd,col=as.fumeric(as.character(y)))
+legend("topleft",levels(factor(y)),fill=seq_along(levels(factor(y))))
+
+```
+When considering the two dimensions, the best prediction is at k = 5
+
+
+```{r}
+pdct1 <- knn(train=xsd[ -idx[[1]] , ], test=xsd[ idx[[1]], ], cl=y[ -idx[[1]] ], k=5)
+table(true=y[ idx[[1]] ], pdct1)
+
+mean(y[ idx[[1]] ] != pdct1)
+
+
+```
+
+```{r}
+for (i in 1:7) {
+  pdct1 <- knn(train=xsd[ idx[[i]] , ], test=xsd[ -idx[[i]], ], cl=y[ idx[[i]] ], k=5)
+  print(paste0(i,") error rate: ", round(mean(y[ -idx[[i]] ] != pdct1),4)))
+}
+
+```
+
+
+
+```{r}
+set.seed(1)
+ks <- 1:12
+res <- sapply(ks, function(k) {
+  res.k <- sapply(seq_along(idx), function(i) {
+    pdct1 <- knn(train=xsd[ -idx[[i]], ],
+                test=xsd[ idx[[i]], ],
+                cl=y[ -idx[[i]] ], k = k)
+
+    mean(y[ idx[[i]] ] != pdct1)
+  })
+ 
+  mean(res.k)
+})
+
+```
+
+
+
+```{r}
+plot(ks, res, type="o",ylab="misclassification error")
+
+
+```
+After scalse the data, we have a better view about k 
+
+
+```{r}
+xsd <- cmdscale(dist(x),k=2)
+set.seed(1)
+ks <- 1:11
+res <- sapply(ks, function(k) {
+  res.k <- sapply(seq_along(idx), function(i) {
+    pdct1 <-  knn(train=xsd[ idx[[i]], ],
+                test=xsd[ -idx[[i]], ],
+                cl=y[ idx[[i]] ], k = k)
+    mean(y[ -idx[[i]] ] != pdct1)
+  })
+  mean(res.k)
+})
+plot(ks, res, type="o",ylim=c(0,0.50),ylab="misclassification error")
+
+
+```
+
+From the plot above, the best k value is 5 in one fold to achieve the minimum in error. In other words, we expect to use 5 dimensions for conducting the analysis.
+
+
+```{r}
+pdct1 <-  knn(train=xsd[ idx[[5]], ],
+                test=xsd[ -idx[[5]], ],
+                cl=y[ idx[[5]] ], k = 5)
+confusionMatrix(table(pdct1 ,y[ -idx[[5]] ]))
+```
+Finally, we have improved the KNN model accuracy with k = 2
+
