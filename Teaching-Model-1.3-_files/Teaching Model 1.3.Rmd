@@ -1,0 +1,505 @@
+---
+title: "Teaching Model 1.3"
+author: "Module3"
+date: '2023-02-18'
+output: html_document
+---
+3.1 Linear Regression Model, Random Forest Model, Knn Model Performance
+
+In this module, we construct models including fit, fit_, Random Forest, KNN and other models to predict our data.This time, we first split the dataset into train and test, and then predict using the models. 
+
+```{r}
+set.seed(1)
+sample <- sample(c(TRUE, FALSE), nrow(colgtotal), replace=TRUE, prob=c(0.7,0.3))
+train  <- colgtotal[sample, ]
+test   <- colgtotal[!sample, ]
+
+```
+
+
+
+```{r}
+train<- na.omit(data.frame(train[,-1]))
+test <- na.omit(data.frame(test[,-1]))
+```
+
+
+By previous sections analysis, we choose filtervarImp to remove non-important variables.
+
+```{r}
+install.packages('caret')
+library(caret)
+install.packages("randomForest")
+library(randomForest)
+```
+
+
+
+
+```{r}
+colg_imp <- filterVarImp(x = colgtotalup[,3:11], y = colgtotal$Project, scale = TRUE)
+
+#sort the score in decreasing order
+colg_imp <- data.frame(cbind(variable = rownames(colg_imp), score = colg_imp[,1]))
+colg_imp$score <- as.double(colg_imp$score)
+colg_imp[order(colg_imp$score,decreasing = TRUE),]
+
+```
+
+Starting to build model fit by the above information
+```{r}
+x1 <- as.numeric(train[,11])
+x2 <- as.numeric(train[,4])
+x3 <- as.numeric(train[,6])
+x4 <- as.numeric(train[,8])
+x5 <- as.numeric(train[,3])
+y <- as.numeric(train[,5])
+fit_ <- lm(y ~ x1 + x2 + x3 + x4+x5)
+
+```
+
+
+```{r}
+yhat <- predict(fit_)
+yhat <- round(yhat,0)
+yhat <- as.numeric(yhat)
+cat("Linear regression prediction error in train:",1-mean(yhat==train$Project),"\n")
+confusionMatrix(factor(train$Project), factor(yhat))
+```
+
+Or we have a model fit available below
+
+
+```{r}
+x11 <- as.numeric(test[,11])
+x22 <- as.numeric(test[,4])
+x33 <- as.numeric(test[,6])
+x44 <- as.numeric(test[,8])
+x55 <- as.numeric(test[,3])
+ytest <- as.numeric(test[,5])
+
+
+```
+
+
+
+
+
+
+
+
+
+```{r}
+yhat <- predict(fit_, newdata=data.frame(x1=x11,x2=x22, x3=x33, x4=x44, x5=x55))
+yhat <- round(yhat,0)
+yhat <- as.numeric(yhat)
+cat("Linear regression prediction error in test:",1-mean(yhat==ytest),"\n")
+confusionMatrix(factor(ytest), factor(yhat))
+```
+
+
+```{r}
+x1 <- as.numeric(train[,7])
+x2 <- as.numeric(train[,6])
+x3 <- as.numeric(train[,9])
+x4 <- as.numeric(train[,10])
+x5 <- as.numeric(train[,11])
+y <- as.numeric(train[,5])
+fit <- lm(y ~ x1 + x2 + x3 + x4+x5)
+
+```
+
+
+
+```{r}
+yhat <- predict(fit)
+yhat <- round(yhat,0)
+y <- round(y, 0)
+cat("Linear regression prediction error in train:",1-mean(yhat==y),"\n")
+confusionMatrix(as.factor(train$Project), as.factor(yhat))
+```
+From the above two models fit, fit_, both not giving us a good prediction, which is only 0.76 on the train data.  
+
+
+```{r}
+colshat <- yhat
+colshat[yhat>=0.5] <- mycols[2]
+colshat[yhat<0.5] <- mycols[1]
+m1 <- -fit$coef[2]/fit$coef[6] #boundary slope
+m2 <- -fit$coef[3]/fit$coef[6] #boundary slope
+
+m3 <- -fit$coef[4]/fit$coef[6] #boundary slope
+
+m4 <- -fit$coef[5]/fit$coef[6] #boundary slope
+
+
+b <- (0.5 - fit$coef[1])/fit$coef[6] #boundary intercept
+
+```
+
+
+```{r}
+##prediction on test
+x11<- as.numeric(test[,7])
+x22<-as.numeric(test[,6])
+x33 <- as.numeric(test[,9])
+x44 <- as.numeric(test[,10])
+x55 <- as.numeric(test[,11])
+ytest <- as.numeric(test[,5])
+
+yhat <- predict(fit,newdata=data.frame(x1=x11,x2=x22, x3=x33, x4=x44, x5=x55))
+yhat <- as.numeric(round(yhat,0))
+cat("Linear regression prediction error in test:",1-mean(yhat==ytest),"\n")
+confusionMatrix(as.factor(test$Project), as.factor(yhat))
+```
+
+We have train error is about 0.24 when using fit model. The accuracy about test data is approximately 0.80.
+
+
+
+
+```{r}
+plot(test,xlim=XLIM,ylim=YLIM)
+abline(b,m1,m2,m3,m4)
+points(newx,col=colshat,pch=16,cex=0.35)
+
+```
+
+
+By the scores in amount, we use the randomForest method for feature selection instead
+
+Considering prediction to project when using random forest starting from numerical variables, which we discussed in Section 3 already.
+
+
+```{r}
+set.seed(1)
+colgtotal <- read.csv("C:/Users/Jing Xie/Documents/R/Teaching Project/Proj 1/Data/Colgtotal.csv") 
+sample <- sample(c(TRUE, FALSE), nrow(colgtotalup), replace=TRUE, prob=c(0.7,0.3))
+trainup  <- colgtotalup[sample, ]
+testup   <- colgtotalup[!sample, ]
+```
+
+
+As supervised model random forest 
+```{r}
+library(dplyr)
+colgtrain <- train[,-5]
+#colgtrain <- colgtrain[,-1]
+colgtrain = na.omit(colgtrain)
+
+rf = randomForest(colgtrain[,1:10],as.numeric(train$Project))
+
+colg_imp2 <- varImp(rf, scale = TRUE)
+
+colg_imp_df <- data.frame(cbind(variable = rownames(colg_imp2), score = colg_imp2[,1]))
+colg_imp_df$score <- as.double(colg_imp_df$score)
+colg_imp_df[order(colg_imp_df$score,decreasing = TRUE),]
+rf_train = rf
+rf_train
+
+```
+
+
+```{r}
+yhat <- as.vector(predict(rf_train))
+yhat <- round(yhat,0)
+cat("RandomForest prediction error in train:",1-mean(yhat==y),"\n")
+confusionMatrix(as.factor(yhat), as.factor(train$Project))
+
+```
+
+
+```{r}
+ggplot(colg_imp_df, aes(x=reorder(variable, score), y=score)) + 
+  geom_point() +
+  geom_segment(aes(x=variable,xend=variable,y=0,yend=score)) +
+  ylab("Impact Level") +
+  xlab("Variable Name") +
+  coord_flip()
+
+
+```
+
+
+```{r}
+colgtest <- test[,-5]
+#colgtrain <- colgtrain[,-1]
+colgtest = na.omit(colgtest)
+
+rf = randomForest(colgtest[,1:10],as.numeric(test$Project))
+
+colg_imp2 <- varImp(rf, scale = TRUE)
+
+colg_imp_df <- data.frame(cbind(variable = rownames(colg_imp2), score = colg_imp2[,1]))
+colg_imp_df$score <- as.double(colg_imp_df$score)
+colg_imp_df[order(colg_imp_df$score,decreasing = TRUE),]
+rf_test = rf
+rf_test
+
+```
+
+
+
+
+```{r}
+yhat <- as.vector(predict(rf_test))
+yhat <- round(yhat,0)
+cat("Linear regression prediction error in test:",1-mean(yhat==ytest),"\n")
+confusionMatrix(as.factor(test$Project), as.factor(yhat))
+
+```
+
+We gave a comparision to fit, fit_, random forest models prediction and evaluation on both train and test dataset. The linear models fit and fit_ models have a better model prediction, however, the limit of the linear regression models is obvious as we only consider a few variables to achieve the accurance. 
+
+
+
+Now, we use the features to predict by applying to knn model, also a supervised model.
+
+
+```{r}
+set.seed(1)
+sample <- sample(c(TRUE, FALSE), nrow(colgtotalup), replace=TRUE, prob=c(0.7,0.3))
+trainup  <- colgtotalup[sample, ]
+trainup <- na.omit(trainup[,3:12])
+testup   <- colgtotalup[!sample, ]
+testup <- na.omit(testup[,3:12])
+```
+
+
+
+
+```{r}
+dat <-trainup
+x<-data.frame(sapply(dat, as.numeric))
+x = data.Normalization(x)
+y<-as.numeric(train$Project)
+xtest <- data.frame(sapply(testup,as.numeric))
+xtest <- data.Normalization(xtest)
+ytest<-as.numeric(test$Project)
+
+```
+
+
+```{r}
+library(rafalib)
+library(class)
+mypar(2,2)
+for(k in c(1,80)){
+  ##predict on train
+  yhat <- knn(x,x,y,k=k)
+  cat("KNN prediction error in train:",1-mean((as.numeric(yhat)-1)==y),"\n")
+  ##make plot
+  yhat <- knn(x,xtest,y,k=k)
+  cat("KNN prediction error in test:",1-mean((as.numeric(yhat)-1)==ytest),"\n")
+}
+yhat <- knn(x, x, y, k=k)
+confusionMatrix(table(yhat,y))
+
+
+```
+
+
+
+```{r}
+yhat <- knn(x, xtest, y, k=k)
+confusionMatrix(table(yhat,ytest))
+
+```
+Finally, mid-test, and quiz take the critical roles on the entire models such as linear regression and random forest models, however, it doesn't show they are necessary over the teaching process. Especially, from hierarchical model plot, we see an important fact about categorical and numeral sitting in different two groups where we can have a finding about the numerical and categorical variables.  
+
+
+As for knn model, we don't see its high accuracy which thereafter will be not in our consideration for the construction. 
+
+
+The following is a comparison of three types of errors. They are respectively from train error, test error, and Bayesian' error. In fact, we found less accuracy from knn prediction for both train and test.
+
+```{r conditional_prob, fig.cap="Probability of Y=1 as a function of X1 and X2. Red is close to 1, yellow close to 0.5, and blue close to 0.", echo=FALSE}
+library(rafalib)
+library(RColorBrewer)
+hmcol <- colorRampPalette(rev(brewer.pal(11, "Spectral")))(100)
+mycols=c(hmcol[1],hmcol[100])
+
+set.seed(1)
+##create covariates and outcomes
+##outcomes are alwasy 50 0s and 50 1s
+s2=1.5
+
+##pick means to create a non linear conditional expectation
+library(MASS)
+M0 <- mvrnorm(10,c(0,0, 0, 0, 0),s2*diag(5)) ##generate 10 means
+M1 <- rbind(mvrnorm(3,c(0,0, 0, 0, 0),s2*diag(5)),
+            mvrnorm(3,c(0,0, 0, 0, 0),s2*diag(5)),
+            mvrnorm(4,c(0,0, 0, 0, 0),s2*diag(5)))
+M2 <- rbind(mvrnorm(3,c(0,0, 0, 0, 0),s2*diag(5)),
+            mvrnorm(3,c(0,0, 0, 0, 0),s2*diag(5)),
+            mvrnorm(4,c(0,0, 0, 0, 0),s2*diag(5)))
+M3 <- rbind(mvrnorm(3,c(0,0, 0, 0, 0),s2*diag(5)),
+            mvrnorm(3,c(0,0, 0, 0, 0),s2*diag(5)),
+            mvrnorm(4,c(0,0, 0, 0, 0),s2*diag(5)))
+M4 <- rbind(mvrnorm(3,c(0,0, 0, 0, 0),s2*diag(5)),
+            mvrnorm(3,c(0,0, 0, 0, 0),s2*diag(5)),
+            mvrnorm(4,c(0,0, 0, 0, 0),s2*diag(5)))
+
+###funciton to generate random pairs
+s<- sqrt(1/5)
+N=20
+makeX <- function(M,n=N,sigma=s*diag(5)){
+  z <- sample(1:10,n,replace=TRUE) ##pick n at random from above 10
+  m <- M[z,] ##these are the n vectors (5 components)
+  return(t(apply(m,1,function(mu) mvrnorm(1,mu,sigma)))) ##the final values
+}
+
+
+###create the training set and the test set
+x0 <- makeX(M0)##the final values for y=0 (green)
+testx0 <- makeX(M0)
+x1 <- makeX(M1)
+testx1 <-makeX(M1)
+x2 <- makeX(M2)
+testx2 <-makeX(M2)
+x3 <- makeX(M3)
+testx3 <-makeX(M3)
+x4 <- makeX(M4)
+testx4 <-makeX(M4)
+x <- rbind(x0,x1, x2,x3,x4) ##one matrix with everything
+Test <- rbind(testx0,testx1, testx2, testx3, testx4)
+y <- c(rep(0,N),rep(1,N), rep(1, N), rep(1,N), rep(1,N)) #the outcomes
+ytest <- c(rep(0,N),rep(1,N))
+cols <- mycols[c(rep(1,N),rep(2,N))]
+colstest <- cols
+
+```
+
+
+
+```{r}
+
+##Create a grid so we can predict all of X,Y
+GS <- 150 ##grid size is GS x GS
+XLIM <- c(min(c(x[,1],x[,2], x[,3], x[,4], x[,5], Test[,1], Test[,2], Test[,3], Test[,4], Test[,5])),max(c(x[,1],x[,2], x[,3], x[,4], x[,5],Test[,1], Test[,2], Test[,3], Test[,4], Test[,5])))
+tmpx <- seq(XLIM[1],XLIM[2],len=GS)
+YLIM <- c(min(c(x[,2],Test[,2])),max(c(x[,2],Test[,2])))
+tmpy <- seq(YLIM[1],YLIM[2],len=GS)
+newx <- expand.grid(tmpx,tmpy) #grid used to show color contour of predictions
+
+
+```
+
+
+
+```{r}
+
+###Bayes rule: best possible answer
+p <- function(x){ ##probability of Y given X
+  p0 <- mean(dnorm(x[1],M0[,1],s)*dnorm(x[2],M0[,2],s)*dnorm(x[3],M0[,3],s)*dnorm(x[4],M0[,4],s)*dnorm(x[5],M0[,5],s))
+  p1 <- mean(dnorm(x[2],M1[,1],s)*dnorm(x[2],M1[,2],s)*dnorm(x[3],M1[,3],s)*dnorm(x[4],M1[,4],s)*dnorm(x[5],M1[,5],s))
+  p2 <- mean(dnorm(x[3],M2[,1],s)*dnorm(x[2],M2[,2],s)*dnorm(x[3],M2[,3],s)*dnorm(x[4],M2[,4],s)*dnorm(x[5],M2[,5],s))
+  p3 <- mean(dnorm(x[4],M3[,1],s)*dnorm(x[2],M3[,2],s)*dnorm(x[2],M3[,2],s)*dnorm(x[2],M3[,2],s)*dnorm(x[2],M3[,2],s))
+  p4 <- mean(dnorm(x[5],M4[,1],s)*dnorm(x[2],M4[,2],s)*dnorm(x[2],M4[,2],s)*dnorm(x[2],M4[,2],s)*dnorm(x[2],M4[,2],s))
+  
+
+  p4/(p0+p1+p2+p3+p4)
+}
+
+###Create the bayesrule prediction
+bayesrule <- apply(newx,1,p)
+colshat <- bayesrule
+
+colshat <- hmcol[floor(bayesrule*100)+1]
+
+mypar()
+plot(x,type="n",xlab="X1",ylab="X2",xlim=XLIM,ylim=YLIM)
+points(newx,col=colshat,pch=16,cex=0.35)
+```
+```{r}
+install.packages('clusterSim')
+library(clusterSim)
+```
+
+
+```{r}
+# Bayer's rule for train 
+newtrain <- data.frame(x1=x1,x2=x2, x3=x3, x4=x4, x5=x5)
+
+newtrain <- as.matrix(newtrain)
+newtrain <- data.Normalization(newtrain,type="n1")
+
+yhat <- apply(newtrain, 1, p)
+
+```
+
+
+
+
+```{r}
+###Bayes Rule for train error
+yhat <- apply(x,1,p)
+#yhat <- round(yhat, 0)
+#yhat <- as.numeric(yhat)
+cat("Bayes rule prediction error in train",1-mean(round(yhat)==y),"\n")
+
+```
+```{r}
+libary(class)
+```
+
+
+
+```{r}
+
+bayes.error=1-mean(round(yhat)==y)
+train.error <- rep(0,16)
+test.error <- rep(0,16)
+for(k in seq(along=train.error)){
+  ##predict on train
+  yhat <- knn(x,x,y,k)
+  train.error[k] <- 1-mean((as.numeric(yhat)-1)==y)
+  ##prediction on test
+  yhat <- knn(x,xtest,y,k)
+  test.error[k] <- 1-mean((as.numeric(yhat1)-1)==ytest)
+}
+```
+```{r}
+# Bayer's rule for test error
+newtest <- data.frame(x1=x11,x2=x22, x3=x33, x4=x44, x5=x55)
+newtest <- as.matrix(newtest)
+newtest <- data.Normalization(newtest, type = 'n1')
+
+yhat <- apply(newtest,1,p)
+yhat <- round(yhat, 0)
+yhat <- as.numeric(yhat)
+
+```
+
+
+
+
+```{r}
+
+cat("Bayes rule prediction error in train",1-mean(round(yhat)==y),"\n")
+bayes.error=1-mean(round(yhat)==y)
+train.error <- rep(0,16)
+test.error <- rep(0,16)
+for(k in seq(along=train.error)){
+  ##predict on train
+  yhat <- knn(x,x,y,k)
+  train.error[k] <- 1-mean((as.numeric(yhat)-1)==y)
+  ##prediction on test
+  yhat <- knn(x,xtest,y,k)
+  test.error[k] <- 1-mean((as.numeric(yhat)-1)==ytest)
+}
+```
+From the experiment, we don't get a Bayer's error as least as expected for such a teaching model. Thus, the Bayer's factor(condition) in this model isn't right. Instead, we overturn the assumption we made before hand that the performance was poor from both train and test. 
+
+```{r}
+# ks <- seq(along=train.error)
+# mypar()
+# plot(ks,train.error,type="n",xlab="K",ylab="Prediction Error",log="x",ylim=range(c(test.error,max(train.error, bayes.error))))
+# lines(ks,train.error,type="b",col=4,lty=2,lwd=2)
+# lines(ks,test.error,type="b",col=5,lty=3,lwd=2)
+# abline(h=bayes.error,col=6)
+# legend("bottomright",c("Train","Test","Bayes"),col=c(4,5,6),lty=c(2,3,1),box.lwd=0)
+
+```
+
+
