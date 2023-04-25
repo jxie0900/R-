@@ -1,6 +1,6 @@
 ---
-title: "Teaching Model1.2"
-author: "Module2"
+title: "Error Correction Model "
+author: "Module 2"
 date: '2023-02-13'
 output:
   html_document: default
@@ -14,7 +14,7 @@ Now, we begin to construct a model, typically linear model. Before doing so, we 
 
 
 
-
+ 
 ```{r}
 colgtotal<- read.csv("C:/Users/Jing Xie/Documents/R/Teaching Project/Proj #1/Data/colgtotal.csv")
 #bs <- filter(colgtotal, Major =='1')
