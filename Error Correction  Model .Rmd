@@ -1,0 +1,1172 @@
+---
+title: "Teaching Model1.2"
+author: "Module2"
+date: '2023-02-13'
+output:
+  html_document: default
+  word_document: default
+---
+
+
+2.1 Description of the Updated Dataset
+
+Now, we begin to construct a model, typically linear model. Before doing so, we first give an experiment design for an updated dataset by starting checking its variation 
+
+
+
+
+```{r}
+colgtotal<- read.csv("C:/Users/Jing Xie/Documents/R/Teaching Project/Proj #1/Data/colgtotal.csv")
+#bs <- filter(colgtotal, Major =='1')
+#lw<- filter(colgtotal, Major =='2')
+#md <- filter(colgtotal, Major =='3')
+#cp <- filter(colgtotal, Major =='4')
+#cmb<-bind_rows(list( "1"=bs, "2"=cp, "3"=lw, '4'=md) , .id="Major")
+
+
+```
+
+
+```{r}
+#remove.packages("rlang")
+#remove.packages("dplyr")
+
+#install.packages("rlang")
+#install.packages("dplyr")
+
+library(rlang)
+library(dplyr)
+
+```
+
+```{r}
+library(ggplot2)
+ggplot(cmb, aes(as.numeric(Mid.Test), colour=Major))+
+  geom_freqpoly()
+ggplot(cmb, aes(as.numeric(Mid.Test), colour=Major, y=..density..))+
+    geom_freqpoly()
+ggplot(cmb, aes(as.numeric(Participation, Mid.Test), color=Major))+
+    geom_density(kernel="gaussian")
+ggplot(cmb, aes(as.numeric(Project, Mid.Test), color=Major))+
+    geom_density(kernel="gaussian")
+```
+The above plot shows the density of individual midterm performance when controlling for student intended majors. Major 4, major 3 and major 2 display an increase tendency to complete the project while not the major 1
+
+
+
+```{r}
+ggplot(cmb, aes(as.numeric(Project, Final.Score), color=Major))+
+    geom_density(kernel="gaussian")
+ggsave('project_final.pdf')
+```
+There is no apparent change regarding the final.
+
+
+
+```{r}
+ggplot(cmb, aes(as.numeric(Participation, Final.Score), color=Major))+
+    geom_density(kernel="gaussian")
+ggsave('parti_final.pdf')
+```
+Taking a consideration of participation, however, we find major 1, 2, and 3 have a good performance related to their paticipation while major 4 isn't.
+```{r}
+cmb$index <- 1:nrow(cmb)
+```
+
+
+
+```{r}
+library(reshape2)
+cmb_mod <-  melt(cmb, id.vars='index', 
+                  measure.vars=c('quiz1', 'Mid.Test', 'HW', 'Participation', 'Final.Score'))
+p<- ggplot(cmb_mod)+
+  geom_boxplot(
+    mapping=aes( 
+      x = index,
+      y = value, color =variable
+    )
+  )+
+  coord_flip()+
+  xlab("")+
+  ylab("Final Test Evaluation")+
+  theme_minimal()
+
+print(p)
+```
+
+
+```{r}
+ggplot(data=cmb, mapping=aes(x=Major, y=Final.Score))+geom_boxplot()
+
+```
+
+2.2 Modeling Testing Method
+After getting acknowledging about the new dataset, we start to build a model. The following script is to create a model that is used to find the predict of y.
+
+2.2.1 Experiment Design
+```{r}
+gd <- colgtotal$Gender
+rc <- colgtotal$Race
+mj <- colgtotal$Major
+gl <- colgtotal$Goal
+pj <- colgtotal$Project
+model.matrix(~gd+rc+mj+gl+pj, data=colgtotal)
+
+```
+The first model contain multiple features
+
+Check the collinearity so that we are able to construct a model. Here, student goal might have effect to reach the collinearity. As a result of the variable goal, which causes collinarity, we prefer using PCA
+
+```{r}
+q<- colgtotal$quiz1
+C <- model.matrix(~gd+rc+mj+gl+pj-1, data=colgtotal)
+c <- model.matrix(~gd+rc+mj+pj-1, data=colgtotal)
+
+
+cat("ncol=",ncol(C),"rank=", qr(C)$rank,"\n")
+cat("ncol=",ncol(c),"rank=", qr(c)$rank,"\n")
+
+```
+```{r}
+model1 <- lm(colgtotal$Final.Score~gd+rc+mj+gl+pj)
+summary(model1)
+
+```
+
+
+```{r}
+model2 <- lm(colgtotal$Final.Score~gd+rc+mj+gl+pj+colgtotal$quiz1+colgtotal$HW+colgtotal$Participation+ colgtotal$Mid.Test)
+summary(model2)
+
+```
+Now we begin to construct alternative models 
+
+```{r}
+library(tidyverse)
+is.na(colgtotal) <-sapply(colgtotal, is.infinite)
+newcolgadm <- na.omit(colgtotal)
+matcolgadm<-data.matrix(newcolgadm[, 3:12])
+
+```
+
+
+
+```{r}
+set.seed(1)
+a<- standardize(as.numeric(sample(colgtotal$Mid.Test),15))
+hist(a, breaks = 20,
+main = "Final Score Distribution",
+xlab = "Simulated Final Score",
+col = "dodgerblue",
+border = "darkorange")
+```
+
+
+We are still in the process of constructing a model for fitting the data.
+
+We also can use the following approach to build up information to create a model. First, we need to provide description to the dataset#### 
+
+
+
+
+
+```{r}
+fg <- colgtotal%>%select('Gender', 'Final.Score')
+fp <- colgtotal%>%select('Project', 'Final.Score')
+mp <- colgtotal%>%select('Project', 'Mid.Test')
+
+```
+
+
+
+
+```{r}
+fg <- data.matrix(fg)
+set.seed(1)
+N = 10
+B = 100000
+fgpvals <- replicate(B,{
+  mal = sample(fg,N)
+  fmal = sample(fg,N)
+  t.test(mal,fmal)$p.val 
+  })
+hist(fgpvals, main = 'Student Gender and Final Performance')
+
+```
+
+
+
+```{r}
+fp <- data.matrix(fp)
+set.seed(1)
+N = 10
+B = 100000
+fppvals <- replicate(B,{
+  pj0 = sample(fp,N)
+  pj1 = sample(fp,N)
+  t.test(pj0,pj1)$p.val 
+  })
+hist(fppvals, main = 'Student Project and Final Performance')
+
+```
+
+
+
+
+
+```{r}
+mp <- data.matrix(mp)
+set.seed(1)
+N = 10
+B = 100000
+mppvals <- replicate(B,{
+  pj0 = sample(mp,N)
+  pj1 = sample(mp,N)
+  t.test(pj0,pj1)$p.val 
+  })
+hist(mppvals, main = 'Student Project and Mid Perforamnce')
+
+```
+The above plots uniformly indicate the variable such as gender and project provide the uniform-like sense about student academics in mid and in final. In this test, we use t test(as previously assumed normal distribution for samples we extracted). We have no concerns about the independence of each experiment we made, and the test follows normal distribution.
+
+
+
+Then we start to test to each feature and sample in the dataset below.
+```{r}
+cladm <- colgtotal[,8:12]
+cladm <- apply(as.matrix(colgtotal[, 8:12]), 2, as.numeric)
+
+```
+
+
+
+```{r}
+cladmttest <- function(x) t.test(x[gd==1],x[gd==0],var.equal=TRUE)$p.value
+cladmpvals1 <- apply(cladm,1,cladmttest)
+cladmpvals2 <- apply(cladm,2,cladmttest)
+
+cladmpvals1
+cladmpvals2
+sum(cladmpvals1<0.05)
+sum(cladmpvals2 < 0.05)     # By columns
+```
+from the above, where we only care about feature columns, of the calculation to p value, we conclude, about the gender, the impact to academics. We see the roles of quiz1 and Final.score as well as the midterm performance.  
+
+```{r}
+cladmttestPJ <- function(x) t.test(x[pj==1],x[pj==0],var.equal=TRUE)$p.value
+cladmpvals3 <- apply(cladm,1,cladmttestPJ)
+cladmpvals4 <- apply(cladm,2,cladmttestPJ)    # By columns
+
+cladmpvals3
+cladmpvals4
+sum(cladmpvals3<0.05)
+sum(cladmpvals4<0.05)
+
+```
+In another word, the above p value for students and for column variables don't show the significance level regarding the gender, however, when considering project, we find it has impact on more column variables such as the test during the mid test (Multiple Test). The above sample isn't the randomly chosen. Here, come up a question: which one is what we choose? 
+
+
+
+```{r}
+#nullpvals <- colttests(randomData,h)$p.value
+library(rafalib)
+mypar(1,2)
+plot(cladmpvals1,-log10(cladmpvals1),
+     xlab="Effect size",ylab="- log (cladmpvals1) p-values")
+
+plot(cladmpvals3,-log10(cladmpvals3),
+     xlab="Effect size",ylab="- log (cladmpvals3) p-values")
+
+
+``` 
+
+```{r}
+library(rafalib)
+mypar(1,2)
+#nullpvals <- colttests(randomData,h)$p.value
+plot(cladmpvals2,-log10(cladmpvals2),
+     xlab="Effect size",ylab="- log (cladmpvals2) p-values")
+
+#nullpvals <- colttests(randomData,h)$p.value
+plot(cladmpvals4,-log10(cladmpvals4), xlim = c(0, 1),          # Consider column features
+     xlab="Effect size",ylab="- log (cladmpvals4) p-values")
+
+```  
+The plots above indicate the effect size of either samples or column variables. From the plots, we see there are at least 3 variables in columns have bigger effect size. From gender perspective, mid test and final test are found to be impacted. (multiple test)
+
+
+```{r}
+set.seed(1)
+library(genefilter)
+u <- nrow(colgtotal)
+v <- ncol(colgtotal[,8:12])
+randomcladm <- matrix(rnorm(u*v),u,v)
+cladmttest <- function(x) t.test(x[gd==1],x[gd==0],var.equal=TRUE)$p.value
+cladmnulpval2 <- apply(randomcladm,2,cladmttest)
+cladmnulpval1 <- apply(randomcladm,1,cladmttest)
+cladmnulpval2
+cladmnulpval1
+which(cladmnulpval1 < 0.05)   
+which(cladmnulpval2 < 0.05)
+
+```
+
+
+```{r}
+cladmttestPJ <- function(x) t.test(x[pj==1],x[pj==0],var.equal=TRUE)$p.value
+cladmnulpval5 <- apply(randomcladm,1,cladmttestPJ)
+cladmnulpval6 <- apply(randomcladm,2,cladmttestPJ)
+
+cladmnulpval5
+cladmnulpval6
+which(cladmnulpval5 < 0.05)   
+which(cladmnulpval6 < 0.05)
+
+```
+
+```{r}
+library(rafalib)
+mypar(1,2)
+
+plot(cladmnulpval2,-log10(cladmnulpval2),
+     xlab="Effect size",ylab="- log (cladmnulpval2) p-values")  # for randomness
+plot(cladmpvals2,-log10(cladmpvals2),               # for particular sample
+     xlab="Effect size",ylab="- log (cladmpval2) p-values")
+
+```
+
+
+```{r}
+library(rafalib)
+mypar(1,2)
+
+plot(cladmnulpval6,-log10(cladmnulpval6),
+     xlab="Effect size",ylab="- log (cladmnulpval6) p-values")  # for randomness
+plot(cladmpvals4,-log10(cladmpvals4),               # for particular sample
+     xlab="Effect size",ylab="- log (cladmpval4) p-values")
+
+```
+
+
+The above tests are the indication of model analysis regarding the gender and project, where we have 90 percent of confidence to reveal more than 4 column variables for both models are significant, in which randomness isn't as good as specified case; however, we expect the more outcomes with the confidence level from observing in addition to its its effect size against p values, so we will further consider other methods than the t test (multiple test)
+
+
+The following aims at finding group and individual activity results 
+
+```{r}
+library(genefilter)
+```
+
+
+
+
+```{r}
+library(rafalib)
+mypar(1,2)
+gd <- factor(gd)
+pj <- factor(pj)
+colgtotal <- apply(as.matrix(colgtotal), 2, as.numeric)
+coladmresults1<- rowttests(t(colgtotal), gd)
+coladmresults2 <- rowttests(t(colgtotal), pj)
+plot(coladmresults1$dm,-log10(coladmresults1$p.value),
+     xlab="Effect size",ylab="- log (coladmresults1$p.value) p-values")
+plot(coladmresults2$dm,-log10(coladmresults2$p.value),
+     xlab="Effect size",ylab="- log (coladmresults2$p.value) p-values")
+
+```
+When using fast method to find effect size besides p value, the highly significance is located on the top, which approximately are about 4 of them.  We also have an interest in ploting both histogram under the condition to check if its uniform
+
+```{r}
+h <- nrow(colgtotal)
+k <- ncol(colgtotal)
+randomcladm <- matrix(rnorm(h*k),h,k)
+coladmresultsnullpvalsgd <- rowttests(t(randomcladm),gd)$p.value
+
+coladmresultsnullpvalspj <- rowttests(t(randomcladm),pj)$p.value
+```
+
+
+```{r}
+library(rafalib)
+mypar(1,2)
+hist(coladmresultsnullpvalsgd,ylim=c(0,15), main = 'Null of p values')
+hist(coladmresults1$p.value,ylim=c(0,15), main = 'p values')
+
+```
+```{r}
+library(rafalib)
+mypar(1,2)
+hist(coladmresultsnullpvalspj,ylim=c(0,15), main = 'Null of p values')
+hist(coladmresults2$p.value,ylim=c(0,15), main = 'p values')
+
+```
+
+
+From the above, the null matrix is uniform, but the pvalues are not. We need to find correlated variables to generalize a better model. The above plots show project factor is found significant to impact student performance (nullpvale is nearly uniform, but its alternative isn't, which indicates there are some correlations within the coladmresults dataset as we found the high error rate, more than 50% are false positive )
+
+
+2.2.2 Modeling Testing
+
+```{r}
+alpha <- 0.05
+m = 10000
+N = 10
+dta <- 3
+nullHypothesis <- c( rep(TRUE,9000), rep(FALSE,1000))
+set.seed(1)
+calls <- sapply(1:m, function(i){
+  control <- sample(cladm,N)
+  treatment <- sample(cladm,N)
+  if(is.na(!nullHypothesis[i])) treatment <- treatment + dta
+  ifelse( t.test(treatment,control)$p.value < alpha, 
+          "Called Significant",
+          "Not Called Significant")
+})
+
+
+```
+
+
+
+```{r}
+null_hypothesis <- factor( nullHypothesis, levels=c("TRUE","FALSE"))
+table(null_hypothesis,calls)
+```
+
+
+
+```{r}
+b <- 10 
+VandS <- replicate(b,{
+  calls <- sapply(1:m, function(i){
+    control <- sample(cladm,N)
+    treatment <- sample(cladm,N)
+    if(is.na(!nullHypothesis[i])) treatment <- treatment + dta
+    t.test(treatment,control)$p.val < alpha
+  })
+  cat("V =",sum(nullHypothesis & calls), "S =",sum(!nullHypothesis & calls),"\n")
+  c(sum(nullHypothesis & calls),sum(!nullHypothesis & calls))
+  })
+
+```
+
+
+
+
+```{r}
+set.seed(1)
+pvals <- sapply(1:m, function(i){
+  control <- sample(cladm,N)
+  treatment <- sample(cladm,N)
+  if(is.na(!nullHypothesis[i])) treatment <- treatment + dta
+  t.test(treatment,control)$p.value
+})
+sum(pvals < 0.05/1000)
+```
+The above is modeling test after running thousands of experiments, 
+
+
+
+The permutation provides us an insight about final where t test indicates not necessary uniform distribution for samples we permute by rows, which we seek other ways to construct the model. 
+
+
+
+```{r}
+library(rafalib)
+mypar(1,2)
+hist(cladmnulpval2,ylim=c(0,10))
+hist(cladmpvals2,ylim=c(0,10))
+
+```
+
+
+
+
+```{r}
+
+library(rafalib)
+mypar(1,2)
+hist(cladmnulpval6,ylim=c(0,10))
+hist(cladmpvals4,ylim=c(0,10))
+
+```
+From fast-way using package genefilter, we don't see uniform distribution no matter which direction, which implies again there are correlation within the dataset
+
+
+
+```{r}
+f <- apply(as.matrix(colgtotal[, 12]), 2, as.numeric)
+
+library(rafalib)
+mypar(1,2)
+
+qqnorm(f[gd==1], main="Normal Q-Q Plot for Female")
+qqline(f[gd==1])
+
+qqnorm(f[gd==0], main = "Normal Q-Q Plot for Male")
+qqline(f[gd==0])
+
+```
+The above plot shows this sample the strong normal distribution with final score. Before giving a further finding, first We use t test to test the photosynthesis to gender.
+
+```{r}
+t.test(f[gd==1],f[gd==0])$p.value
+
+```
+
+However, we don't find its significance related the gender when applying to f1, but do significant when applying to f while the outcome doesn't agree to project, that is, we repeated to use the t for other features
+We find anything that is significant when controlling for gender in an updated dataset, which implies improving performance doesn't need to check gender as it is uncertain.
+We are now working on another variable in the project.
+
+```{r}
+cladm <- colgtotal[,8:12]
+f <- apply(as.matrix(cladm[, 5]), 2, as.numeric)
+library(rafalib)
+mypar(1,2)
+
+qqnorm(f[pj==1],main="Normal Q-Q Plot for pj=1")
+qqline(f[pj==1])
+
+qqnorm(f[pj==0], main="Normal Q-Q Plot for pj=0")
+qqline(f[pj==0])
+
+
+```
+
+
+
+
+```{r}
+colgadm1 = read.csv("C:/Users/Jing Xie/Documents/R/Teaching Project/Proj 1/Data/StudentsAcademicPerformance.csv") 
+
+t.test(f[pj==1],f[pj==0])$p.value
+
+t.test(f[gd==1], f[gd==0])$p.value
+
+colgadm1 <- colgadm1[1:14, ]
+f1 <- apply(as.matrix(colgadm1[, 14]), 2, as.numeric)
+
+
+t.test(f1[pj==1],f1[pj==0])$p.value
+
+t.test(f1[gd==1], f1[gd==0])$p.value
+
+
+```
+This is the analysis to two dataset f, and f1, the first comes from colgtotal, the second one from colgadm1. We have found the different outcome in term of gender, which once again reveal categorical variable such as gender isn't considered as a crucial factor.
+
+```{r}
+p<- pj
+cladmttest <- function(x) t.test(x[p==1],x[p==0],var.equal=TRUE)$p.value
+cladm <- apply(as.matrix(cladm), 2, as.numeric)
+cladmpvals <- apply(cladm,2,cladmttest)
+cladmpvals
+sum(cladmpvals<0.05)
+
+```
+
+Once again, the above  is to check the significance using modeling test method
+
+WHen pvalue method applies to updated dataset, there are four significance, they are final, hw, quiz and mid test..  
+
+Alternative method for using modeling test to find significance on two-way.
+
+```{r}
+set.seed(1)
+p <- sample(pj)
+myttest <- function(x) t.test(x[p==1],x[p==0],var.equal=TRUE)$p.value
+pumpvals1 <- apply(cladm,1,myttest)
+pumpvals2 <- apply(cladm,2,myttest)
+
+mypar(1,2)
+hist(pumpvals1)
+hist(pumpvals2)
+```
+
+
+
+From the above plot, we have an overview about how major has an effect to student performance. As shown, students who are major far to the course, will receive the points most likely around 30-35 (maximum in ratio) as mentioned before, and it is probably related to points student earned per hr(Modeling). 
+
+2.3 Modeling
+2.3.1 Model for Continuous Variable
+There are many methods for constructing a model. Naive method(we discussed before), hierarchical model for variance continuous variable distribution, Machine learning algrithm, etc. We will 
+Now we have an episode for the project, it is about a poisson distribution we found from above, which promotes us to generate an additional column fm below as we previously discussed in section 2.1.
+```{r}
+# study final exam and major relationship
+colgtotal<- data.frame(colgtotal)
+colgtotal$fm <- as.numeric(colgtotal$Final.Score/colgtotal$Major)
+
+hist(colgtotal$fm)
+
+```
+
+
+All of the above proves there are dependent columns. The final ratio related major as a matter shows its poisson distribution. 
+
+
+
+```{r}
+# About setting up a model 
+l<-function(lambda) sum(dpois(colgtotal$fm,lambda,log=FALSE)) 
+
+colg_lambdas<-seq(0.5,80,len=100)
+ls <- sapply(colg_lambdas,l)
+```
+
+
+
+```{r}
+plot(colg_lambdas,ls,type="l")
+
+maxlike=optimize(l,c(0,80),maximum=TRUE)
+abline(v=maxlike$maximum)
+```
+
+The maximum is at about 30 a student can earn.
+
+```{r}
+print( c(maxlike$maximum, mean(colgtotal$fm) ) )
+x <- colgtotal$fm
+x[is.infinite(x)] <- 0
+theoretical<-qpois((seq(0,50)+0.5)/100,mean(x))
+
+
+qqplot(theoretical,x)
+abline(0,1)
+
+```
+We skip the hierarchical and bayer's model for variance variable, which will be discussed in later sections.
+
+Now we use PCA model for the entire dataset, and first starting from helping reduce the dimension before modeling 
+
+2.3.2 PCA Method 
+We first consider PCA where only feature variables that are continuous take into account. 
+```{r}
+library(tidyverse)
+is.na(colgtotal) <-sapply(colgtotal, is.infinite)
+newcolgadm <- na.omit(colgtotal)
+matcolgadm<- apply(as.matrix(newcolgadm[, 3:12]), 2, as.numeric)
+
+```
+
+
+
+```{r}
+matcolgadm<- apply(as.matrix(colgtotal[,8:12]), 2, as.numeric)
+set.seed(1)
+idx <- sample(nrow(colgtotal),100) 
+matcolgadm <- t(apply(matcolgadm[idx,],1,scale)) #standardize data for illustration
+clg_svd <- svd(matcolgadm)
+U <- clg_svd$u
+V <- clg_svd$v
+D <- diag(clg_svd$d)
+clg_hat <- U%*% D %*%t(V)
+
+```
+
+
+```{r}
+res <- matcolgadm - clg_hat
+plot(as.matrix(res))
+plot(clg_svd$d)
+plot(cumsum(clg_svd$d^2)/sum(clg_svd$d^2)*100,ylab="Percent variability explained",ylim=c(90,100),type="l")
+boxplot(as.matrix(res),range=0)
+# to find correlation
+1- var(as.vector(res))/var(as.vector(matcolgadm))
+clg_svd$d[1]^2/sum(clg_svd$d^2)
+
+```
+From the above outcome, we clearly say there are at least four principle components that will be used to explain up to 93% of the dataset.
+
+
+```{r}
+
+plot(clg_svd$u[, 1], clg_svd$u[, 2], col = mj, main = "SVD", xlab = "U1", ylab = "U2")
+
+plot(clg_svd$u[, 1], clg_svd$u[, 2], col = pj, main = "SVD", xlab = "U1", ylab = "U2")
+```
+ 
+ 
+The following is an alternative method for finding the PCA
+ 
+```{r}
+# library(dplyr)
+# is.na(colgtotal) <-sapply(colgtotal, is.infinite)
+# newcolgadm1 <- colgtotal
+# #newcolgadm1 <- na.omit(colgtotal)
+# #newcolgadm1 <- as.matrix(mutate_all(newcolgadm, function(x) as.numeric(x)))
+# matcolgadm1 <- data.matrix(newcolgadm1)
+# x_colg<- t(matcolgadm1[,7:13])
+# is.na(x_colg)<-sapply(x_colg, is.infinite)
+# pc_colg<-prcomp(x_colg,scale=TRUE)
+# #plot(pc_colg$x[, 1], pc_colg$x[, 2], col = colgadm$Project, main = "PCA", #xlab = "PC1", ylab = "PC2")
+
+```
+
+
+
+
+
+```{r}
+# library(rafalib)
+# colg_res <- svd( matcolgadm - rowMeans(matcolgadm) )
+# mypar(1,2)
+# for(i in 1:nrow(matcolgadm) ){
+#   plot(pc_colg$x[,i], colg_res$d[i]*colg_res$v[,i])
+# }
+
+```
+
+2.3.2 More about PCA
+We select machine learning pCA model for the dataset using R
+
+```{r}
+standardize <- function(X)
+{
+  stan <- (X - mean(X))/sd(X)
+  return(stan)
+}
+colg_sadm <- standardize(matcolgadm)
+
+s<- svd(colg_sadm)
+PC1 = s$d[1]*s$v[,1]
+PC2 = s$d[2]*s$v[,2]
+plot(PC1,PC2,xlim=c(-20,10),ylim=c(-5,10))
+
+```
+
+Alternative Method for PCA 
+Starting from exploring variables that are independent
+```{r}
+pc_mat <- prcomp(t(matcolgadm))
+pc_mat$sdev
+```
+The obove again provides a strong evidence to indicate the first four components that take the majority of percentage compared to the remaining. 
+
+
+2.4.1 Finding reduced dimensional using python 
+
+
+```{r}
+library(rafalib)
+library(MASS)
+
+#standardize the matrix 
+
+standardize <- function(X)
+{
+  stan <- (X - mean(X))/sd(X)
+  return(stan)
+}
+colg_sadm <- standardize(matcolgadm)
+
+s<- svd(colg_sadm)
+PC1 = s$d[1]*s$v[,1]
+PC2 = s$d[2]*s$v[,2]
+plot(PC1,PC2,xlim=c(-20,10),ylim=c(-5,10))
+
+```
+
+```{r}
+U <- s$u
+V <- s$v
+D <- diag(s$d) 
+
+colg_hat <- U %*% D %*% t(V)
+resid <- colg_sadm - colg_hat
+plot(s$d)
+
+```
+Starting from here, we have a clear mind on dimentionity for this dataframe
+
+```{r}
+plot(s$d^2/sum(s$d^2)*100,ylab="Percent variability explained")
+v <- cumsum(s$d^2)/sum(s$d^2)*100
+plot(v,ylab="Percent variability explained",ylim=c(80,100),type="l")
+
+```
+
+
+
+
+```{r}
+is.na(colgtotal) <-sapply(colgtotal, is.infinite)
+#newcolgadm <- na.omit(colgtotal)
+matcolgadm<- apply(as.matrix(colgtotal[, 3:12]), 2, as.numeric)
+set.seed(1)
+idx <- sample(nrow(colgtotal),100) 
+matcolgadm <- t(apply(matcolgadm[idx,],1,scale)) #standardize data for illustration
+d <- dist( t(matcolgadm) )
+library(rafalib)
+mypar()
+ft <- c('Gender', 'Race', 'Goal', 'Major', 'Project', 'quiz1', 'Mid.Test', 'HW', 'Participation', 'Final.Score')
+hc <- hclust(d)
+hc
+plot(hc, labels = ft)
+```
+
+myplclust(hc, labels=ft, lab.col=as.fumeric(ft), cex=0.5)
+
+
+
+```{r}
+set.seed(1)
+km <- kmeans(t(colg_sadm), centers=4)
+mds <- cmdscale(d)
+
+mypar(1,2)
+plot(mds[,1], mds[,2]) 
+plot(mds[,1], mds[,2], col=km$cluster, pch=16)
+
+
+```
+
+
+
+```{r}
+library(RColorBrewer) 
+hmcol <- colorRampPalette(brewer.pal(9, "GnBu"))(100)
+library(genefilter)
+
+```
+
+
+
+```{r}
+# colg_rv <- rowVars(t(colg_sadm))
+# colg_idx <- order(-colg_rv)[1:5]
+# library(gplots) ##Available from CRAN
+# cols <- palette(brewer.pal(7, "Dark2"))[as.fumeric(ft)]
+
+```
+
+
+```{r}
+# par(mar = c(1, 1, 1, 1))
+# heatmap.2(colg_sadm[colg_idx,], labCol=ft,
+#           trace="none", 
+#           ColSideColors=cols, 
+#           col=hmcol)
+# dev.off()
+
+```
+The plots above have shown which features are important. They are classifed into two classes, and each of the classes. The middle test and final score as well as the quiz take an important role (signifiant). Final score and mid test don't find its significant correlation with race, gender, etc. 
+```{r}
+library(caret)
+colg_cor <- data.frame(cor(colg_sadm))
+
+findCorrelation(cor(colg_cor), cutoff=0.75)
+
+
+```
+So far, we gave an analysis to data without considering categorical variable. However, when the entire dataset comes into play, 
+
+```{r}
+colgtotal<- read.csv("C:/Users/Jing Xie/Documents/R/Teaching Project/Proj 1/Data/colgtotal.csv")
+colg_imp <- filterVarImp(x = colgtotal[,7:11], y = colgtotal$Final.Score)
+
+#sort the score in decreasing order
+colg_imp <- data.frame(cbind(variable = rownames(colg_imp), score = colg_imp[,1]))
+colg_imp$score <- as.double(colg_imp$score)
+colg_imp[order(colg_imp$score,decreasing = TRUE),]
+
+```
+
+
+
+
+
+```{r}
+install.packages("randomForest")
+library(randomForest)
+```
+
+
+```{r}
+library(dplyr)
+colgadm2 <- colgtotal[,-12]
+
+rf = randomForest(colgadm2[,3:11],as.numeric(colgtotal$Final.Score))
+colg_imp2 <- varImp(rf, scale = TRUE)
+
+colg_imp_df <- data.frame(cbind(variable = rownames(colg_imp2), score = colg_imp2[,1]))
+colg_imp_df$score <- as.double(colg_imp_df$score)
+colg_imp_df[order(colg_imp_df$score,decreasing = TRUE),]
+
+```
+
+```{r}
+ggplot(colg_imp_df, aes(x=reorder(variable, score), y=score)) + 
+  geom_point() +
+  geom_segment(aes(x=variable,xend=variable,y=0,yend=score)) +
+  ylab("Impact Level") +
+  xlab("Variable Name") +
+  coord_flip()
+
+
+```
+
+The above two cases from random forest model provide us different perspectives when considering either the categorical or not. From the plot, we find major is also important for participating in the discussion.
+
+Next, we consider the performance from project
+
+
+We begin to do prediction using naive, KNN and random forest model
+
+```{r}
+set.seed(1)
+sample <- sample(c(TRUE, FALSE), nrow(colgtotal), replace=TRUE, prob=c(0.7,0.3))
+train  <- colgtotal[sample, ]
+test   <- colgtotal[!sample, ]
+
+```
+
+
+```{r}
+x1 <- as.numeric(train[,8])
+x2 <- as.numeric(train[,9])
+x3 <- as.numeric(train[,10])
+x4 <- as.numeric(train[,11])
+x5 <- as.numeric(train[,12])
+y <- as.numeric(train[,7])
+fit <- lm(y ~ x1 + x2 + x3 + x4+x5)
+
+```
+
+
+
+```{r}
+yhat <- predict(fit)
+yhat <- round(yhat,0)
+y <- round(y, 0)
+cat("Linear regression prediction error in train:",1-mean(yhat==y),"\n")
+
+```
+
+
+
+
+```{r}
+colshat <- yhat
+colshat[yhat>=0.5] <- mycols[2]
+colshat[yhat<0.5] <- mycols[1]
+m1 <- -fit$coef[2]/fit$coef[6] #boundary slope
+m2 <- -fit$coef[3]/fit$coef[6] #boundary slope
+
+m3 <- -fit$coef[4]/fit$coef[6] #boundary slope
+
+m4 <- -fit$coef[5]/fit$coef[6] #boundary slope
+
+
+b <- (0.5 - fit$coef[1])/fit$coef[6] #boundary intercept
+
+```
+
+
+```{r}
+
+##prediction on test
+x11<- as.numeric(test[,8])
+X22<-as.numeric(test[,9])
+x33 <- as.numeric(test[,10])
+x44 <- as.numeric(test[,11])
+x55 <- as.numeric(test[,12])
+yhat <- predict(fit,newdata=data.frame(x1=X11,x2=X22, x3=x33, x4=x44, x5=x55))
+yhat <- as.numeric(yhat>0.5)
+cat("Linear regression prediction error in test:",1-mean(yhat==ytest),"\n")
+
+```
+
+
+Considering prediction to project when using random forest starting from numerical variables
+
+
+```{r}
+colgtotalup <- colgtotal[,-7]
+
+```
+
+
+
+```{r}
+colg_imp <- filterVarImp(x = colgtotalup[,7:11], y = colgtotal$Project)
+
+#sort the score in decreasing order
+colg_imp <- data.frame(cbind(variable = rownames(colg_imp), score = colg_imp[,1]))
+colg_imp$score <- as.double(colg_imp$score)
+colg_imp[order(colg_imp$score,decreasing = TRUE),]
+
+```
+
+By the scores in amount, we use the randomForest method for feature selection instead
+
+
+```{r}
+library(dplyr)
+colgadm2 <- colgtotal[,-7]
+
+rf = randomForest(colgadm2[,3:11],as.numeric(colgtotal$Project))
+colg_imp2 <- varImp(rf, scale = TRUE)
+
+colg_imp_df <- data.frame(cbind(variable = rownames(colg_imp2), score = colg_imp2[,1]))
+colg_imp_df$score <- as.double(colg_imp_df$score)
+colg_imp_df[order(colg_imp_df$score,decreasing = TRUE),]
+
+```
+
+
+```{r}
+ggplot(colg_imp_df, aes(x=reorder(variable, score), y=score)) + 
+  geom_point() +
+  geom_segment(aes(x=variable,xend=variable,y=0,yend=score)) +
+  ylab("Impact Level") +
+  xlab("Variable Name") +
+  coord_flip()
+
+
+```
+Now, we use the selected features to predict by applying to knn
+```{r}
+set.seed(1)
+sample <- sample(c(TRUE, FALSE), nrow(colgtotalup), replace=TRUE, prob=c(0.7,0.3))
+trainup  <- colgtotalup[sample, ]
+
+testup   <- colgtotalup[!sample, ]
+
+```
+
+
+```{r}
+dat <-trainup
+x<-data.frame(sapply(dat[,3:11], as.numeric))
+
+y<-as.numeric(train$Project)
+xtest <- data.frame(sapply(testup[,3:11],as.numeric))
+ytest<-as.numeric(test$Project)
+library(class)
+mypar(2,2)
+for(k in c(1,80)) {
+  ##predict on train
+  yhat <- knn(x,x,y,k=k)
+  cat("KNN prediction error in train:",1-mean((as.numeric(yhat)-1)==y),"\n")
+  ##make plot
+  yhat <- knn(x,xtest,y,k=k)
+  cat("KNN prediction error in test:",1-mean((as.numeric(yhat)-1)==ytest),"\n")
+}
+
+```
+The following is a comparison of two types of errors. They are respectively from train error, test error error. Bayer's error will be discussed in section 1.7.
+
+
+
+3.1 knn Model Prediction 
+So far, we have used knn model for evaluating model performance. We will further predict after inputting new samples (9.6) using this model
+
+```{r}
+pdct <- knn(train = x, test= x, cl = y, k = 5)
+mean(y!=pdct)
+
+```
+
+
+
+```{r}
+library(caret)
+set.seed(1)
+idx <- createFolds(y, k=7)
+sapply(idx, length)
+head( x[idx[[1]], 1:3] ) 
+```
+
+
+
+
+```{r}
+sapply(idx, function(i) table(y[i]))
+
+```
+
+
+
+```{r}
+library(rafalib)
+mypar()
+xsd <- cmdscale(dist(x))
+plot(xsd,col=as.fumeric(as.character(y)))
+legend("topleft",levels(factor(y)),fill=seq_along(levels(factor(y))))
+
+```
+
+
+
+
+```{r}
+pdct1 <- knn(train=xsd[ -idx[[1]] , ], test=xsd[ idx[[1]], ], cl=y[ -idx[[1]] ], k=5)
+table(true=y[ idx[[1]] ], pdct1)
+
+mean(y[ idx[[1]] ] != pdct1)
+
+
+```
+
+
+
+```{r}
+for (i in 1:7) {
+  pdct1 <- knn(train=xsd[ idx[[i]] , ], test=xsd[ -idx[[i]], ], cl=y[ idx[[i]] ], k=5)
+  print(paste0(i,") error rate: ", round(mean(y[ -idx[[i]] ] != pdct1),4)))
+}
+
+```
+
+```{r}
+set.seed(1)
+ks <- 1:12
+res <- sapply(ks, function(k) {
+  res.k <- sapply(seq_along(idx), function(i) {
+    pdct1 <- knn(train=xsd[ -idx[[i]], ],
+                test=xsd[ idx[[i]], ],
+                cl=y[ -idx[[i]] ], k = k)
+
+    mean(y[ idx[[i]] ] != pdct1)
+  })
+ 
+  mean(res.k)
+})
+
+```
+
+
+
+```{r}
+plot(ks, res, type="o",ylab="misclassification error")
+```
+
+
+
+```{r}
+xsd <- cmdscale(dist(x),k=5)
+set.seed(1)
+ks <- 1:11
+res <- sapply(ks, function(k) {
+  res.k <- sapply(seq_along(idx), function(i) {
+    pdct1 <-  knn(train=xsd[ idx[[i]], ],
+                test=xsd[ -idx[[i]], ],
+                cl=y[ idx[[i]] ], k = k)
+    mean(y[ -idx[[i]] ] != pdct1)
+  })
+  mean(res.k)
+})
+plot(ks, res, type="o",ylim=c(0,0.50),ylab="misclassification error")
+
+
+
+
+
+```
+
+From the plot above, the best k value is 5 in one fold to achieve the minimum in error. In other words, we expect to use 5 features for conducting the analysis.
+
+From the above two tests on five$q1and one$q1, two$q1, we don't see significant impact from q1 on the three majors, but confirmed the five is exactly normal distribution. That is, under the specific order for the specific sample, we have 5 dimensions for achieving the optimal requirement. In this case, to be surprised, HW isn't counted to achieve the goal.   
+
+
