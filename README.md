@@ -6,3 +6,15 @@
 * After completing analysis to the models, I offer an assessment of the accuracy of model predictions.
 * I further conduct cross validation to do prediction after the model evaluation.
 * Finally, I will give a selection to models have constructed
+
+
+
+
+
+
+# References:
+* Harvard University Data Science forthe Life Sciences (2022)         PH525X  Biomedical Data Science http://genomicsclass.github.io/book/
+* MIT Data Science (2021)       Data Sceince for Social Scientists  https://github.com/dnackat/data-analysis-for-social-scientists-mitx
+* Rehema (2022)    Dimension Deduction and Feature Selection    https://rpubs.com/r_owino/913802
+* Zehui Wu   77 Feature Selection in r  https://jtr13.github.io/cc21fall2/feature-selection-in-r.html
+* 
